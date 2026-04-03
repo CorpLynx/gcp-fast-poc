@@ -1,3 +1,0 @@
-*.md ident
-versions.tf linguist-generated=true
-versions.tofu linguist-generated=true

@@ -40,7 +40,7 @@ variable "context" {
 variable "factories_config" {
   description = "Configuration for the resource factories or external data."
   type = object({
-    dataset = optional(string, "datasets/classic")
+    dataset = optional(string, "datasets/hardened")
     paths = optional(object({
       billing_accounts  = optional(string, "billing-accounts")
       cicd_workflows    = optional(string)
