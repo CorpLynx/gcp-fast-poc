@@ -17,6 +17,27 @@ Changes made to `FAST-Pre-Bootstrap-Runbook-2.md` during the FAST POC setup.
 
 ---
 
+## 2026-04-06 — Clean rebuild of workflow + teardown script
+
+**Problem:** Accumulated workarounds in the workflow (targeted apply phases, error swallowing, project imports) made it fragile and hard to reason about. Custom constraints race condition was the root cause of most failures — Terraform creates constraints and folder/project policies in parallel, but the policies need the constraints to exist first.
+
+**Changes:**
+- Rebuilt `.github/workflows/fast-stage-0.yml` from scratch with clean structure:
+  - Pre-create ALL custom constraints via gcloud before Terraform runs (prevents race condition)
+  - Import step now includes all custom constraints (88 total)
+  - Added `destroy` action to workflow dispatch
+  - Plan output written to GHA job summary (last 100 lines)
+  - Removed all targeted apply workarounds
+- Created `teardown-stage0.sh` — complete teardown script for wiping all Stage 0 resources
+  - Terraform destroy (with state), then manual cleanup of orphaned resources
+  - Deletes custom constraints, folders, projects, custom roles, tags, IAM bindings
+  - Resets org policy overrides, deletes bootstrap SA and seed project
+- Created `proxy-allowlist.txt` — API endpoints for proxy exceptions
+
+**Note:** After teardown, project IDs with the old prefix enter a 30-day cooldown. Must use a new prefix when re-deploying.
+
+---
+
 ## 2026-04-06 — Manually created custom constraints and tagUser role via Cloud Shell
 
 **Problem:** The two custom org policy constraints (`custom.iamDisableAdminServiceAccount`, `custom.iamDisableProjectServiceAccountImpersonationRoles`) were never being created by Terraform. The `organization-iam` module that creates them depends on `factory` module outputs, and the `factory` module's folder policies reference the constraints — creating a circular dependency that Terraform resolves by running them in parallel. The constraints never win the race. Additionally, the bootstrap SA lacked `roles/resourcemanager.tagUser` needed for folder tag bindings.
