@@ -60,6 +60,93 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
+      - name: Pre-create custom constraints
+        if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
+        run: |
+          echo "Pre-creating all custom org policy constraints..."
+          CONSTRAINTS_DIR="datasets/hardened/organization/custom-constraints"
+          ORG="organizations/$ORG_ID"
+          IAC_PROJECT="fast-poc-prod-iac-core-0"
+
+          for f in "$CONSTRAINTS_DIR"/*.yaml; do
+            # Extract constraint name from filename
+            CONSTRAINT_NAME=$(basename "$f" .yaml)
+
+            # Read the YAML, substitute template variables, convert to gcloud format
+            CONDITION=$(python3 -c "
+          import yaml, sys
+          with open('$f') as fh:
+              data = yaml.safe_load(fh)
+          key = list(data.keys())[0]
+          c = data[key]
+          # Template substitutions
+          condition = c['condition']
+          condition = condition.replace('\${project_ids.iac-0}', '$IAC_PROJECT')
+          condition = condition.replace('\${iam_principals.gcp-organization-admins}', 'group:gcp-organization-admins@gigachadglobal.org')
+          condition = condition.replace('\${organization.domain}', 'gigachadglobal.org')
+          print(condition)
+          ")
+
+            DISPLAY_NAME=$(python3 -c "
+          import yaml
+          with open('$f') as fh:
+              data = yaml.safe_load(fh)
+          key = list(data.keys())[0]
+          print(data[key].get('display_name', key))
+          ")
+
+            DESCRIPTION=$(python3 -c "
+          import yaml
+          with open('$f') as fh:
+              data = yaml.safe_load(fh)
+          key = list(data.keys())[0]
+          print(data[key].get('description', ''))
+          ")
+
+            ACTION_TYPE=$(python3 -c "
+          import yaml
+          with open('$f') as fh:
+              data = yaml.safe_load(fh)
+          key = list(data.keys())[0]
+          print(data[key]['action_type'])
+          ")
+
+            METHOD_TYPES=$(python3 -c "
+          import yaml
+          with open('$f') as fh:
+              data = yaml.safe_load(fh)
+          key = list(data.keys())[0]
+          print(','.join(data[key]['method_types']))
+          ")
+
+            RESOURCE_TYPES=$(python3 -c "
+          import yaml
+          with open('$f') as fh:
+              data = yaml.safe_load(fh)
+          key = list(data.keys())[0]
+          print(','.join(data[key]['resource_types']))
+          ")
+
+            # Write constraint YAML for gcloud
+            cat > /tmp/constraint.yaml <<CEOF
+          name: $ORG/customConstraints/$CONSTRAINT_NAME
+          resourceTypes:
+          $(echo "$RESOURCE_TYPES" | tr ',' '\n' | sed 's/^/  - /')
+          methodTypes:
+          $(echo "$METHOD_TYPES" | tr ',' '\n' | sed 's/^/  - /')
+          condition: |-
+          $(echo "$CONDITION" | sed 's/^/  /')
+          actionType: $ACTION_TYPE
+          displayName: "$DISPLAY_NAME"
+          description: "$DESCRIPTION"
+          CEOF
+
+            gcloud org-policies set-custom-constraint /tmp/constraint.yaml 2>/dev/null \
+              && echo "  Created: $CONSTRAINT_NAME" \
+              || echo "  Failed or exists: $CONSTRAINT_NAME"
+          done
+          echo "Custom constraint pre-creation complete."
+
       - name: Import orphaned resources
         if: inputs.action == 'import-and-apply'
         run: |
@@ -127,11 +214,13 @@ jobs:
             "organizations/$ORG_ID/settings" 2>/dev/null || echo "  (skipped or already in state)"
 
           echo "Importing custom constraints..."
-          for constraint in custom.iamDisableAdminServiceAccount custom.iamDisableProjectServiceAccountImpersonationRoles; do
-            echo "  Importing $constraint..."
+          CONSTRAINTS_DIR="datasets/hardened/organization/custom-constraints"
+          for f in "$CONSTRAINTS_DIR"/*.yaml; do
+            CONSTRAINT_NAME=$(basename "$f" .yaml)
+            echo "  Importing $CONSTRAINT_NAME..."
             terraform import \
-              "module.organization-iam[0].google_org_policy_custom_constraint.constraint[\"$constraint\"]" \
-              "organizations/$ORG_ID/customConstraints/$constraint" 2>/dev/null || echo "  (skipped or already in state)"
+              "module.organization-iam[0].google_org_policy_custom_constraint.constraint[\"$CONSTRAINT_NAME\"]" \
+              "organizations/$ORG_ID/customConstraints/$CONSTRAINT_NAME" 2>/dev/null || echo "  (skipped or already in state)"
           done
 
           echo "Importing essential contacts..."

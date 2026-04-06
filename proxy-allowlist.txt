@@ -1,0 +1,49 @@
+# GCP API Endpoints — Terraform Provider Calls (Stage 0)
+# These are the googleapis.com domains the GHA runner calls during FAST Stage 0.
+
+accesscontextmanager.googleapis.com
+bigquery.googleapis.com
+bigquerydatatransfer.googleapis.com
+billingbudgets.googleapis.com
+cloudasset.googleapis.com
+cloudbilling.googleapis.com
+cloudbuild.googleapis.com
+cloudidentity.googleapis.com
+cloudkms.googleapis.com
+cloudquotas.googleapis.com
+cloudresourcemanager.googleapis.com
+compute.googleapis.com
+container.googleapis.com
+datacatalog.googleapis.com
+essentialcontacts.googleapis.com
+iam.googleapis.com
+iamcredentials.googleapis.com
+logging.googleapis.com
+monitoring.googleapis.com
+networksecurity.googleapis.com
+orgpolicy.googleapis.com
+pubsub.googleapis.com
+securitycentermanagement.googleapis.com
+servicenetworking.googleapis.com
+serviceusage.googleapis.com
+storage.googleapis.com
+storage-component.googleapis.com
+sts.googleapis.com
+tags.googleapis.com
+
+# GCP Auth
+oauth2.googleapis.com
+accounts.google.com
+
+# Terraform / GHA Infra
+releases.hashicorp.com
+registry.terraform.io
+github.com
+api.github.com
+*.actions.githubusercontent.com
+objects.githubusercontent.com
+pipelines.actions.githubusercontent.com
+
+# gcloud CLI (constraint pre-creation step)
+dl.google.com
+packages.cloud.google.com
