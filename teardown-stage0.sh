@@ -1,44 +1,112 @@
 #!/bin/bash
 # =============================================================================
-# FAST Stage 0 — Complete Teardown
-# Run from Cloud Shell as corplynx@gigachadglobal.org
+# FAST Stage 0 — Complete Teardown (based on fast/stages/CLEANUP.md)
+#
+# Prerequisites:
+#   1. Download the fast-stage-0-tfstate artifact from your latest GHA run
+#   2. Place terraform.tfstate in fast/stages/0-org-setup/
+#   3. Have Terraform 1.12.2 installed locally
+#   4. Be authenticated (gcloud auth application-default login or SA key)
+#
+# Run from the repo root.
 # =============================================================================
 set -euo pipefail
 
+STAGE_DIR="fast/stages/0-org-setup"
 export ORG_ID="1041701195417"
 export BILLING_ACCOUNT_ID="014F76-ED4E67-7CCCE1"
 export SEED_PROJECT="fast-seed-bootstrap"
 export BOOTSTRAP_SA_EMAIL="fast-bootstrap@${SEED_PROJECT}.iam.gserviceaccount.com"
 
-echo "=== Phase 1: Terraform Destroy ==="
-echo "Download the fast-stage-0-tfstate artifact from your latest GHA run first."
-echo "Place terraform.tfstate in fast/stages/0-org-setup/ then run:"
-echo ""
-echo "  cd fast/stages/0-org-setup"
-echo "  cat > provider-bootstrap.tf <<'EOF'"
-echo '  provider "google" {}'
-echo '  provider "google-beta" {}'
-echo "  EOF"
-echo "  export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa-key.json"
-echo "  terraform init"
-echo "  terraform destroy -auto-approve"
-echo ""
-echo "If you don't have the SA key, authenticate as yourself:"
-echo "  gcloud auth application-default login"
-echo "  terraform destroy -auto-approve"
-echo ""
-read -p "Press Enter after terraform destroy completes (or skip if no state)..."
+echo "=== Step 0: Verify state file exists ==="
+if [ ! -f "$STAGE_DIR/terraform.tfstate" ]; then
+  echo "ERROR: No terraform.tfstate found in $STAGE_DIR"
+  echo "Download the fast-stage-0-tfstate artifact from GHA and place it there."
+  exit 1
+fi
+
+echo "=== Step 1: Create bootstrap provider config ==="
+cat > "$STAGE_DIR/provider-bootstrap.tf" <<'EOF'
+provider "google" {}
+provider "google-beta" {}
+EOF
+
+echo "=== Step 2: Terraform init ==="
+cd "$STAGE_DIR"
+terraform init
+
+echo "=== Step 3: Grant bootstrap user permissions for destroy ==="
+FAST_BU=$(gcloud config list --format 'value(core.account)')
+echo "Current user: $FAST_BU"
+echo "Running terraform apply with bootstrap_user to grant destroy permissions..."
+terraform apply -var bootstrap_user="$FAST_BU" -auto-approve || true
 
 echo ""
-echo "=== Phase 2: Delete custom constraints ==="
+echo "=== Step 4: Remove resources from state that block destroy ==="
+echo "Removing GCS buckets (Terraform can't delete non-empty buckets)..."
+for x in $(terraform state list | grep google_storage_bucket.bucket 2>/dev/null); do
+  echo "  state rm: $x"
+  terraform state rm "$x" 2>/dev/null || true
+done
+
+echo "Removing managed folders..."
+for x in $(terraform state list | grep google_storage_managed_folder.folder 2>/dev/null); do
+  echo "  state rm: $x"
+  terraform state rm "$x" 2>/dev/null || true
+done
+
+echo "Removing BigQuery datasets..."
+for x in $(terraform state list | grep google_bigquery_dataset 2>/dev/null); do
+  echo "  state rm: $x"
+  terraform state rm "$x" 2>/dev/null || true
+done
+
+echo "Removing log bucket configs..."
+for x in $(terraform state list | grep google_logging_project_bucket_config 2>/dev/null); do
+  echo "  state rm: $x"
+  terraform state rm "$x" 2>/dev/null || true
+done
+
+echo "Removing custom constraints from state (can't recreate with same name if destroyed)..."
+for x in $(terraform state list | grep google_org_policy_custom_constraint 2>/dev/null); do
+  echo "  state rm: $x"
+  terraform state rm "$x" 2>/dev/null || true
+done
+
+echo ""
+echo "=== Step 5: First terraform destroy ==="
+echo "This will likely fail — that's expected. Continue to Step 6."
+terraform destroy -auto-approve || true
+
+echo ""
+echo "=== Step 6: Grant additional roles for cleanup ==="
+echo "Granting projectDeleter, owner, organizationAdmin to $FAST_BU..."
+for role in roles/resourcemanager.projectDeleter roles/owner roles/resourcemanager.organizationAdmin; do
+  gcloud organizations add-iam-policy-binding "$ORG_ID" \
+    --member "user:$FAST_BU" --role "$role" --condition None --quiet 2>/dev/null || true
+done
+
+echo ""
+echo "=== Step 7: Second terraform destroy ==="
+terraform destroy -auto-approve || true
+
+echo ""
+echo "=== Step 8: Clean up local state ==="
+rm -f terraform.tfstate terraform.tfstate.backup
+rm -f provider-bootstrap.tf
+
+echo ""
+echo "=== Step 9: Clean up orphaned custom constraints ==="
+echo "These were removed from state (not destroyed) to avoid the 30-day name cooldown."
+echo "Deleting them from GCP now..."
 CONSTRAINTS=$(gcloud org-policies list-custom-constraints \
   --organization="$ORG_ID" \
   --format="value(name)" 2>/dev/null)
 if [ -n "$CONSTRAINTS" ]; then
   echo "$CONSTRAINTS" | while read -r c; do
-    CONSTRAINT_SHORT="${c##*/}"
-    echo "  Deleting $CONSTRAINT_SHORT..."
-    gcloud org-policies delete-custom-constraint "$CONSTRAINT_SHORT" \
+    SHORT="${c##*/}"
+    echo "  Deleting $SHORT..."
+    gcloud org-policies delete-custom-constraint "$SHORT" \
       --organization="$ORG_ID" --quiet 2>/dev/null || echo "  (failed)"
   done
 else
@@ -46,58 +114,7 @@ else
 fi
 
 echo ""
-echo "=== Phase 3: Delete orphaned folders ==="
-gcloud resource-manager folders list \
-  --organization="$ORG_ID" \
-  --filter="lifecycleState=ACTIVE" \
-  --format="value(name,displayName)" 2>/dev/null | while IFS=$'\t' read -r FOLDER_ID FOLDER_NAME; do
-    echo "  Deleting folder: $FOLDER_NAME ($FOLDER_ID)..."
-    gcloud resource-manager folders delete "$FOLDER_ID" --quiet 2>/dev/null || echo "  (failed — may have children)"
-done
-
-echo ""
-echo "=== Phase 4: Delete orphaned projects ==="
-for prefix in fast-poc fast; do
-  gcloud projects list \
-    --filter="projectId:${prefix}-prod-* AND lifecycleState=ACTIVE" \
-    --format="value(projectId)" 2>/dev/null | while read -r proj; do
-      echo "  Deleting project: $proj..."
-      gcloud projects delete "$proj" --quiet 2>/dev/null || echo "  (failed)"
-  done
-done
-
-echo ""
-echo "=== Phase 5: Delete orphaned custom roles ==="
-gcloud iam roles list --organization="$ORG_ID" \
-  --format="value(name)" 2>/dev/null | while read -r role; do
-    ROLE_SHORT="${role##*/}"
-    echo "  Deleting custom role: $ROLE_SHORT..."
-    gcloud iam roles delete "$ROLE_SHORT" --organization="$ORG_ID" \
-      --quiet 2>/dev/null || echo "  (failed or already deleted)"
-done
-
-echo ""
-echo "=== Phase 6: Delete orphaned tag keys and values ==="
-for key_short in context environment org-policies; do
-  KEY_ID=$(gcloud resource-manager tags keys list \
-    --parent="organizations/$ORG_ID" \
-    --filter="shortName=$key_short" \
-    --format="value(name)" 2>/dev/null)
-  if [ -n "$KEY_ID" ]; then
-    # Delete values first
-    gcloud resource-manager tags values list \
-      --parent="$KEY_ID" \
-      --format="value(name)" 2>/dev/null | while read -r val_id; do
-        echo "  Deleting tag value: $val_id..."
-        gcloud resource-manager tags values delete "$val_id" --quiet 2>/dev/null || echo "  (failed)"
-    done
-    echo "  Deleting tag key: $key_short ($KEY_ID)..."
-    gcloud resource-manager tags keys delete "$KEY_ID" --quiet 2>/dev/null || echo "  (failed)"
-  fi
-done
-
-echo ""
-echo "=== Phase 7: Remove bootstrap SA org IAM bindings ==="
+echo "=== Step 10: Remove bootstrap SA IAM bindings ==="
 for role in \
   roles/resourcemanager.organizationAdmin \
   roles/resourcemanager.projectCreator \
@@ -126,18 +143,22 @@ for role in roles/billing.admin roles/billing.user; do
 done
 
 echo ""
-echo "=== Phase 8: Remove user ad-hoc IAM bindings ==="
+echo "=== Step 11: Remove user ad-hoc and destroy IAM bindings ==="
+FAST_BU=$(gcloud config list --format 'value(core.account)')
 for role in \
   roles/resourcemanager.folderAdmin \
   roles/securitycentermanagement.admin \
-  roles/orgpolicy.policyAdmin; do
+  roles/orgpolicy.policyAdmin \
+  roles/resourcemanager.projectDeleter \
+  roles/owner \
+  roles/resourcemanager.organizationAdmin; do
   gcloud organizations remove-iam-policy-binding "$ORG_ID" \
-    --member="user:corplynx@gigachadglobal.org" \
+    --member="user:$FAST_BU" \
     --role="$role" --quiet 2>/dev/null || true
 done
 
 echo ""
-echo "=== Phase 9: Reset org policy overrides on seed project ==="
+echo "=== Step 12: Reset org policy overrides on seed project ==="
 gcloud org-policies reset iam.disableServiceAccountKeyCreation \
   --project="$SEED_PROJECT" 2>/dev/null || true
 gcloud org-policies reset iam.managed.disableServiceAccountKeyCreation \
@@ -146,7 +167,7 @@ gcloud org-policies reset iam.allowedPolicyMemberDomains \
   --project="$SEED_PROJECT" 2>/dev/null || true
 
 echo ""
-echo "=== Phase 10: Delete bootstrap SA and seed project ==="
+echo "=== Step 13: Delete bootstrap SA and seed project ==="
 gcloud iam service-accounts delete "$BOOTSTRAP_SA_EMAIL" \
   --project="$SEED_PROJECT" --quiet 2>/dev/null || true
 gcloud projects delete "$SEED_PROJECT" --quiet 2>/dev/null || true
@@ -154,7 +175,8 @@ gcloud projects delete "$SEED_PROJECT" --quiet 2>/dev/null || true
 echo ""
 echo "=== Teardown complete ==="
 echo ""
-echo "IMPORTANT: Project IDs with prefix 'fast-poc' are now in 30-day cooldown."
-echo "Use a new prefix (e.g., 'fpoc') in defaults.yaml before re-deploying."
-echo ""
-echo "Delete the GCP_BOOTSTRAP_SA_KEY secret from GitHub before re-deploying."
+echo "IMPORTANT:"
+echo "  - Project IDs with prefix 'fast-poc' are in 30-day cooldown"
+echo "  - Custom constraint names are in 30-day cooldown"
+echo "  - Use a new prefix in defaults.yaml before re-deploying"
+echo "  - Delete GCP_BOOTSTRAP_SA_KEY secret from GitHub"

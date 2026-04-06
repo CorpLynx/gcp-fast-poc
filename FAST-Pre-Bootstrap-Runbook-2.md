@@ -59,7 +59,7 @@ export BILLING_ACCOUNT_ID="014F76-ED4E67-7CCCE1"
 
 # Short prefix prepended to every resource FAST creates (lowercase, max 9 chars).
 # This makes GCP project IDs globally unique. Use a company abbreviation.
-export FAST_PREFIX="fast"
+export FAST_PREFIX="test1"
 
 # Default GCP region for FAST resources (BigQuery, GCS, logging).
 # Pick a region that supports all core services. No dash before the number.
