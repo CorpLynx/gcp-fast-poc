@@ -36,4 +36,4 @@ context:
 #   iam_principals:
 #     foo: group:foo@example.com
   locations:
-    primary: europe-west1
+    primary: us-east4

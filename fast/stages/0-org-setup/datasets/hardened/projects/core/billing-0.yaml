@@ -40,18 +40,18 @@ iam:
   roles/owner: []
 kms:
   keyrings:
-    ew1:
-      location: europe-west1
+    ue4:
+      location: us-east4
       keys:
         bigquery:
           rotation_period: 7776000s
 log_buckets:
   _Default:
     retention: 90
-    location: europe-west1
+    location: us-east4
 service_encryption_key_ids:
   bigquery.googleapis.com:
-    - $kms_keys:billing-0/ew1/bigquery
+    - $kms_keys:billing-0/ue4/bigquery
 org_policies:
   gcp.restrictCmekCryptoKeyProjects:
     rules:
@@ -60,4 +60,4 @@ org_policies:
 datasets:
   billing_export:
     friendly_name: Billing export
-    encryption_key: $kms_keys:billing-0/ew1/bigquery
+    encryption_key: $kms_keys:billing-0/ue4/bigquery

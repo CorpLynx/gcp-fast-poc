@@ -41,26 +41,26 @@ services:
   - storage.googleapis.com
 kms:
   keyrings:
-    ew1:
-      location: europe-west1
+    ue4:
+      location: us-east4
       keys:
         logging:
           rotation_period: 7776000s
 service_encryption_key_ids:
   logging.googleapis.com:
-    - $kms_keys:log-0/ew1/logging
+    - $kms_keys:log-0/ue4/logging
 log_buckets:
   _Default:
     retention: 90
-    location: europe-west1
+    location: us-east4
   audit-logs:
-    kms_key_name: $kms_keys:log-0/ew1/logging
+    kms_key_name: $kms_keys:log-0/ue4/logging
     retention: 90
   iam:
-    kms_key_name: $kms_keys:log-0/ew1/logging
+    kms_key_name: $kms_keys:log-0/ue4/logging
     retention: 90
   vpc-sc:
-    kms_key_name: $kms_keys:log-0/ew1/logging
+    kms_key_name: $kms_keys:log-0/ue4/logging
     log_analytics:
       enable: true
     retention: 90

@@ -26,13 +26,13 @@ context:
       - 172.16.0.0/12
       - 192.168.0.0/16
   locations:
-    primary: europe-west1
-    secondary: europe-west3
+    primary: us-east4
+    secondary: us-east1
   iam_principals: {}
 projects:
   defaults:
     locations:
-      storage: eu
+      storage: us
   # edit and uncomment for vpc-sc cooperative configuration
   # overrides:
   #   vpc_sc:

@@ -105,18 +105,18 @@ services:
   - sts.googleapis.com
 kms:
   keyrings:
-    ew1:
-      location: europe-west1
+    ue4:
+      location: us-east4
       keys:
         storage:
           rotation_period: 7776000s
 log_buckets:
   _Default:
     retention: 90
-    location: europe-west1
+    location: us-east4
 service_encryption_key_ids:
   storage.googleapis.com:
-    - $kms_keys:iac-0/ew1/storage
+    - $kms_keys:iac-0/ue4/storage
 org_policies:
   gcp.restrictCmekCryptoKeyProjects:
     rules:

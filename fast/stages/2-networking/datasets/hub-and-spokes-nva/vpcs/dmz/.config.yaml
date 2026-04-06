@@ -24,8 +24,8 @@ routers:
         # # Uncomment to advertise the Private Google Access routes that support VPC Service Controls. (see https://docs.cloud.google.com/vpc/docs/private-google-access-hybrid)
         # "199.36.153.4/30": "restricted-googleapis-com"
 nat_config:
-  nat-ew8:
-    region: europe-west1
+  nat-ue4:
+    region: $locations:primary
 routes:
   rfc1918-10:
     dest_range: "10.0.0.0/8"

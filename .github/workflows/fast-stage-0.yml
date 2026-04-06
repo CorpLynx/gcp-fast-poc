@@ -1,0 +1,63 @@
+name: "FAST Stage 0 — Bootstrap"
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action to run"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+        default: plan
+
+env:
+  TF_VERSION: "1.12.1"
+  WORKING_DIR: "fast/stages/0-org-setup"
+
+jobs:
+  stage-0:
+    name: "Stage 0 — ${{ inputs.action }}"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        run: |
+          echo '${{ secrets.GCP_BOOTSTRAP_SA_KEY }}' > /tmp/gcp-key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json" >> "$GITHUB_ENV"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        run: terraform apply tfplan
+
+      - name: Upload output files
+        if: inputs.action == 'apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fast-stage-0-outputs
+          path: ~/fast-config/fast/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f /tmp/gcp-key.json
