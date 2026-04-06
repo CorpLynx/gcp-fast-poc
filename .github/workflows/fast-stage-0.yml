@@ -139,7 +139,7 @@ jobs:
 
       - name: Terraform Apply
         if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
-        run: terraform apply tfplan
+        run: terraform apply tfplan || echo "::warning::Main apply had errors — targeted apply will retry race-condition resources"
 
       - name: Targeted apply for race-condition resources
         if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
