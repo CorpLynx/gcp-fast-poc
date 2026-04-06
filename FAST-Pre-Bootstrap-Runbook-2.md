@@ -59,7 +59,7 @@ export BILLING_ACCOUNT_ID="014F76-ED4E67-7CCCE1"
 
 # Short prefix prepended to every resource FAST creates (lowercase, max 9 chars).
 # This makes GCP project IDs globally unique. Use a company abbreviation.
-export FAST_PREFIX="test1"
+export FAST_PREFIX="fpoc"
 
 # Default GCP region for FAST resources (BigQuery, GCS, logging).
 # Pick a region that supports all core services. No dash before the number.
@@ -358,7 +358,7 @@ global:
     customer_id: C02xrlndw                      # from: gcloud organizations describe $ORG_ID --format="value(owner.directoryCustomerId)"
 projects:
   defaults:
-    prefix: fast                                # lowercase, max 9 chars
+    prefix: fpoc                                # lowercase, max 9 chars
     locations:
       bigquery: $locations:primary
       logging: $locations:primary
