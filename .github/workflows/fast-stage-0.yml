@@ -126,6 +126,11 @@ jobs:
             "module.organization[0].google_logging_organization_settings.default[0]" \
             "organizations/$ORG_ID/settings" 2>/dev/null || echo "  (skipped or already in state)"
 
+          echo "Importing essential contacts..."
+          terraform import \
+            "module.organization[0].google_essential_contacts_contact.contact[\"\$email_addresses:gcp-organization-admins\"]" \
+            "organizations/$ORG_ID/contacts/0" 2>/dev/null || echo "  (skipped or already in state)"
+
           echo "Import complete."
           set -e
 
