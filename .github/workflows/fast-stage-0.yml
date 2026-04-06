@@ -135,7 +135,12 @@ jobs:
           set -e
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
+        run: |
+          terraform plan -out=tfplan -no-color 2>&1 | tee plan-output.txt
+          echo '## Terraform Plan' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat plan-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Terraform Apply
         if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
