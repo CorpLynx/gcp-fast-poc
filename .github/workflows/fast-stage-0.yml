@@ -10,11 +10,13 @@ on:
         options:
           - plan
           - apply
+          - import-and-apply
         default: plan
 
 env:
   TF_VERSION: "1.12.2"
   WORKING_DIR: "fast/stages/0-org-setup"
+  ORG_ID: "1041701195417"
 
 jobs:
   stage-0:
@@ -46,18 +48,106 @@ jobs:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
+      - name: Download previous state
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: fast-stage-0-tfstate
+          path: ${{ env.WORKING_DIR }}
+          search_artifacts: true
+          if_no_artifact_found: warn
+
       - name: Terraform Init
         run: terraform init
+
+      - name: Import orphaned resources
+        if: inputs.action == 'import-and-apply'
+        run: |
+          set +e
+          echo "Importing orphaned custom roles..."
+          for role in cloudKmsViewer:cloudkms_viewer folderViewer:folder_viewer loggingViewer:logging_viewer networkFirewallPoliciesAdmin:network_firewall_policies_admin ngfwEnterpriseAdmin:ngfw_enterprise_admin ngfwEnterpriseViewer:ngfw_enterprise_viewer organizationAdminViewer:organization_admin_viewer organizationIamAdmin:organization_iam_admin projectIamViewer:project_iam_viewer serviceAccountViewer:service_account_viewer serviceNetworkingViewer:service_networking_viewer serviceProjectNetworkAdmin:service_project_network_admin storageViewer:storage_viewer tagViewer:tag_viewer; do
+            GCP_ID="${role%%:*}"
+            TF_KEY="${role##*:}"
+            echo "  Importing $TF_KEY..."
+            terraform import \
+              "module.organization[0].google_organization_iam_custom_role.roles[\"$TF_KEY\"]" \
+              "organizations/$ORG_ID/roles/$GCP_ID" 2>/dev/null || echo "  (skipped or already in state)"
+          done
+
+          echo "Importing orphaned tag keys..."
+          for key_short in context environment org-policies; do
+            KEY_ID=$(gcloud resource-manager tags keys list \
+              --parent="organizations/$ORG_ID" \
+              --filter="shortName=$key_short" \
+              --format="value(name)" 2>/dev/null)
+            if [ -n "$KEY_ID" ]; then
+              echo "  Importing tag key $key_short ($KEY_ID)..."
+              terraform import \
+                "module.organization[0].google_tags_tag_key.default[\"$key_short\"]" \
+                "$KEY_ID" 2>/dev/null || echo "  (skipped or already in state)"
+
+              echo "  Importing tag values for $key_short..."
+              for val_line in $(gcloud resource-manager tags values list \
+                --parent="$KEY_ID" \
+                --format="csv[no-heading](name,shortName)" 2>/dev/null); do
+                VAL_ID="${val_line%%,*}"
+                VAL_SHORT="${val_line##*,}"
+                echo "    Importing tag value $key_short/$VAL_SHORT ($VAL_ID)..."
+                terraform import \
+                  "module.organization[0].google_tags_tag_value.default[\"$key_short/$VAL_SHORT\"]" \
+                  "$VAL_ID" 2>/dev/null || echo "    (skipped or already in state)"
+              done
+            fi
+          done
+
+          echo "Importing orphaned folders..."
+          for folder_line in $(gcloud resource-manager folders list \
+            --organization="$ORG_ID" \
+            --filter="lifecycleState=ACTIVE" \
+            --format="csv[no-heading](name,displayName)" 2>/dev/null); do
+            FOLDER_ID="${folder_line%%,*}"
+            FOLDER_NAME="${folder_line##*,}"
+            FOLDER_KEY=""
+            case "$FOLDER_NAME" in
+              "Networking") FOLDER_KEY="networking" ;;
+              "Security") FOLDER_KEY="security" ;;
+              "Teams") FOLDER_KEY="teams" ;;
+              "Data Platform") FOLDER_KEY="data-platform" ;;
+            esac
+            if [ -n "$FOLDER_KEY" ]; then
+              echo "  Importing folder $FOLDER_NAME ($FOLDER_ID)..."
+              terraform import \
+                "module.factory.module.folder-1[\"$FOLDER_KEY\"].google_folder.folder[0]" \
+                "$FOLDER_ID" 2>/dev/null || echo "  (skipped or already in state)"
+            fi
+          done
+
+          echo "Importing org logging settings..."
+          terraform import \
+            "module.organization[0].google_logging_organization_settings.default[0]" \
+            "organizations/$ORG_ID/settings" 2>/dev/null || echo "  (skipped or already in state)"
+
+          echo "Import complete."
+          set -e
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
-        if: inputs.action == 'apply'
+        if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
         run: terraform apply tfplan
 
+      - name: Save Terraform state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fast-stage-0-tfstate
+          path: ${{ env.WORKING_DIR }}/terraform.tfstate
+          if-no-files-found: warn
+          retention-days: 90
+          overwrite: true
+
       - name: Upload output files
-        if: inputs.action == 'apply'
+        if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
         uses: actions/upload-artifact@v4
         with:
           name: fast-stage-0-outputs

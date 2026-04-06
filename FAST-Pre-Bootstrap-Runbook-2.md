@@ -146,6 +146,25 @@ gcloud services enable \
 
 ---
 
+## Step 2b: Activate Security Command Center
+
+FAST Stage 0 creates SCC Security Health Analytics custom modules at the org level.
+This requires SCC Standard or Premium tier to be activated on the organization.
+Without it, all `google_scc_management_organization_security_health_analytics_custom_module`
+resources fail with `404: Parent resource not found`.
+
+**This must be done manually in the GCP Console:**
+
+1. Go to [Security Command Center](https://console.cloud.google.com/security/command-center) in the GCP Console
+2. Select your organization from the project picker
+3. If prompted, activate **Security Command Center Standard tier** (free)
+4. Wait a few minutes for activation to propagate
+
+> **Note:** There is no gcloud command to activate SCC. It must be done via the Console.
+> The Standard tier is free and sufficient for FAST's needs.
+
+---
+
 ## Step 3: Create Google Groups
 
 FAST assigns IAM roles to these groups, not to individual users. The groups must

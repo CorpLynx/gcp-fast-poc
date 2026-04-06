@@ -17,6 +17,39 @@ Changes made to `FAST-Pre-Bootstrap-Runbook-2.md` during the FAST POC setup.
 
 ---
 
+## 2026-04-06 — DRS org policy blocks SCC activation on seed project
+
+**Problem:** Activating Security Command Center on the seed project requires binding Google-managed service agents (e.g. `@security-center-api.iam.gserviceaccount.com`) to the project. The pre-existing `iam.allowedPolicyMemberDomains` org policy blocks these bindings because the service agents don't belong to the org domain (`gigachadglobal.org`). This is not a FAST-specific policy — it's a standard enterprise DRS constraint.
+
+**Fix:** Override `iam.allowedPolicyMemberDomains` on the seed project only with `allowAll: true` before activating SCC. The override is scoped to the temporary seed project which gets deleted in cleanup. FAST itself re-deploys DRS at the org level with tag-based exceptions that properly allow service agents.
+
+```bash
+gcloud org-policies set-policy --project=fast-seed-bootstrap /dev/stdin <<EOF
+name: projects/fast-seed-bootstrap/policies/iam.allowedPolicyMemberDomains
+spec:
+  rules:
+    - allowAll: true
+EOF
+```
+
+**Note:** This should be added to Step 7 of the runbook alongside the other org policy overrides if DRS is enforced on the org before FAST runs.
+
+---
+
+## 2026-04-06 — Added SCC activation step, GHA state persistence, import-and-apply workflow
+
+**Problem 1:** All 16 SCC SHA custom modules failed with `404: Parent resource not found` even after granting `roles/securitycentermanagement.admin`. SCC Standard/Premium tier must be activated at the org level via the GCP Console before the API can manage org-level resources. Enabling the API on the seed project is not enough.
+
+**Problem 2:** GHA workflow used local backend with ephemeral runners. State was lost between runs, causing "already exists" errors on retry for custom roles, tag keys, tag values, and folders created by the first partial apply.
+
+**Changes:**
+- Runbook: added Step 2b for SCC activation via GCP Console (no gcloud equivalent exists)
+- Workflow: added `terraform.tfstate` artifact upload/download for state persistence across runs (90-day retention)
+- Workflow: added `import-and-apply` action that imports orphaned resources (custom roles, tag keys, tag values, folders, org logging settings) into state before planning and applying
+- Workflow: uses `dawidd6/action-download-artifact@v6` to retrieve state from previous workflow runs
+
+---
+
 ## 2026-04-06 — Added securitycentermanagement.admin role to Step 5
 
 **Problem:** Stage 0 apply failed with `IAM_PERMISSION_DENIED` on all 16 `google_scc_management_organization_security_health_analytics_custom_module` resources. The bootstrap SA needs `roles/securitycentermanagement.admin` at the org level to create SCC SHA custom modules.
