@@ -17,6 +17,14 @@ Changes made to `FAST-Pre-Bootstrap-Runbook-2.md` during the FAST POC setup.
 
 ---
 
+## 2026-04-06 — Fixed folder import script CSV parsing with spaces in display names
+
+**Problem:** The import script used CSV format with `%%,*` and `##*,` bash string splitting to parse folder names. "Data Platform" contains a space which caused the CSV parsing to fail silently — the folder was never imported, leading to repeated "display name uniqueness" errors on apply.
+
+**Fix:** Switched from CSV to tab-separated `value()` format with `IFS=$'\t'` and replaced the `case` statement with a `declare -A` associative array for folder name-to-key mapping.
+
+---
+
 ## 2026-04-06 — Cumulative permissions summary
 
 **Bootstrap SA org-level roles (Step 5):**
