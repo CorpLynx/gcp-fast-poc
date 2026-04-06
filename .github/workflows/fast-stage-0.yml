@@ -100,26 +100,25 @@ jobs:
           done
 
           echo "Importing orphaned folders..."
-          for folder_line in $(gcloud resource-manager folders list \
-            --organization="$ORG_ID" \
-            --filter="lifecycleState=ACTIVE" \
-            --format="csv[no-heading](name,displayName)" 2>/dev/null); do
-            FOLDER_ID="${folder_line%%,*}"
-            FOLDER_NAME="${folder_line##*,}"
-            FOLDER_KEY=""
-            case "$FOLDER_NAME" in
-              "Networking") FOLDER_KEY="networking" ;;
-              "Security") FOLDER_KEY="security" ;;
-              "Teams") FOLDER_KEY="teams" ;;
-              "Data Platform") FOLDER_KEY="data-platform" ;;
-            esac
-            if [ -n "$FOLDER_KEY" ]; then
+          # Hardcode known folder mappings to avoid CSV parsing issues with spaces in names
+          declare -A FOLDER_MAP
+          FOLDER_MAP["Networking"]="networking"
+          FOLDER_MAP["Security"]="security"
+          FOLDER_MAP["Teams"]="teams"
+          FOLDER_MAP["Data Platform"]="data-platform"
+
+          while IFS=$'\t' read -r FOLDER_ID FOLDER_NAME; do
+            FOLDER_KEY="${FOLDER_MAP[$FOLDER_NAME]:-}"
+            if [ -n "$FOLDER_KEY" ] && [ -n "$FOLDER_ID" ]; then
               echo "  Importing folder $FOLDER_NAME ($FOLDER_ID)..."
               terraform import \
                 "module.factory.module.folder-1[\"$FOLDER_KEY\"].google_folder.folder[0]" \
                 "$FOLDER_ID" 2>/dev/null || echo "  (skipped or already in state)"
             fi
-          done
+          done < <(gcloud resource-manager folders list \
+            --organization="$ORG_ID" \
+            --filter="lifecycleState=ACTIVE" \
+            --format="value(name,displayName)" 2>/dev/null)
 
           echo "Importing org logging settings..."
           terraform import \

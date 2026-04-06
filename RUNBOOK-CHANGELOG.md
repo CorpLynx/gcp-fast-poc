@@ -17,6 +17,32 @@ Changes made to `FAST-Pre-Bootstrap-Runbook-2.md` during the FAST POC setup.
 
 ---
 
+## 2026-04-06 — Cumulative permissions summary
+
+**Bootstrap SA org-level roles (Step 5):**
+All 13 original roles from the runbook plus one added during troubleshooting:
+- `roles/securitycentermanagement.admin` — required for SCC SHA custom modules (added after `IAM_PERMISSION_DENIED` errors)
+
+**Seed project org policy overrides (Step 7):**
+- `iam.disableServiceAccountKeyCreation` — enforce: false (for SA key generation)
+- `iam.managed.disableServiceAccountKeyCreation` — enforce: false (managed variant)
+- `iam.allowedPolicyMemberDomains` — allowAll: true (for SCC activation, DRS blocks Google service agent bindings)
+
+**User account ad-hoc grants (not in runbook, used during troubleshooting):**
+- `roles/resourcemanager.folderAdmin` — granted to `corplynx@gigachadglobal.org` to delete orphaned folders from failed applies
+- `roles/securitycentermanagement.admin` — granted to `corplynx@gigachadglobal.org` to verify SCC propagation status
+
+**Seed project APIs (Step 2):**
+Two APIs added after initial failures:
+- `essentialcontacts.googleapis.com` — required for `google_essential_contacts_contact`
+- `securitycentermanagement.googleapis.com` — required for SCC SHA custom modules
+
+**Other prerequisites discovered:**
+- SCC Standard tier must be activated at the org level via GCP Console (Step 2b) — no gcloud equivalent
+- DRS org policy must be overridden on seed project before SCC activation if DRS is pre-existing
+
+---
+
 ## 2026-04-06 — DRS org policy blocks SCC activation on seed project
 
 **Problem:** Activating Security Command Center on the seed project requires binding Google-managed service agents (e.g. `@security-center-api.iam.gserviceaccount.com`) to the project. The pre-existing `iam.allowedPolicyMemberDomains` org policy blocks these bindings because the service agents don't belong to the org domain (`gigachadglobal.org`). This is not a FAST-specific policy — it's a standard enterprise DRS constraint.
