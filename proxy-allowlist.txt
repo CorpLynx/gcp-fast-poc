@@ -1,49 +1,34 @@
-# GCP API Endpoints — Terraform Provider Calls (Stage 0)
-# These are the googleapis.com domains the GHA runner calls during FAST Stage 0.
+cloudresourcemanager.googleapis.com — creates projects, folders, gets org
+cloudbilling.googleapis.com — links billing to projects
+iam.googleapis.com — creates SAs, custom roles, IAM bindings
+iamcredentials.googleapis.com — SA auth token generation
+orgpolicy.googleapis.com — creates custom constraints, org policies, project policies
+serviceusage.googleapis.com — enables APIs on projects
+storage.googleapis.com — creates GCS buckets, uploads objects
+cloudkms.googleapis.com — creates keyrings and keys
+logging.googleapis.com — creates log buckets, org sinks, org settings
+essentialcontacts.googleapis.com — creates org contacts
+securitycentermanagement.googleapis.com — creates SCC SHA custom modules
+cloudasset.googleapis.com — asset feeds
+tags.googleapis.com — creates tag bindings on folders
+bigquery.googleapis.com — creates billing export dataset
+pubsub.googleapis.com — may create topics for log-0
+oauth2.googleapis.com — auth token exchange
 
-accesscontextmanager.googleapis.com
+# --- Minimal: only APIs the runner actually calls ---
 bigquery.googleapis.com
-bigquerydatatransfer.googleapis.com
-billingbudgets.googleapis.com
 cloudasset.googleapis.com
 cloudbilling.googleapis.com
-cloudbuild.googleapis.com
-cloudidentity.googleapis.com
 cloudkms.googleapis.com
-cloudquotas.googleapis.com
 cloudresourcemanager.googleapis.com
-compute.googleapis.com
-container.googleapis.com
-datacatalog.googleapis.com
 essentialcontacts.googleapis.com
 iam.googleapis.com
 iamcredentials.googleapis.com
 logging.googleapis.com
-monitoring.googleapis.com
-networksecurity.googleapis.com
+oauth2.googleapis.com
 orgpolicy.googleapis.com
 pubsub.googleapis.com
 securitycentermanagement.googleapis.com
-servicenetworking.googleapis.com
 serviceusage.googleapis.com
 storage.googleapis.com
-storage-component.googleapis.com
-sts.googleapis.com
 tags.googleapis.com
-
-# GCP Auth
-oauth2.googleapis.com
-accounts.google.com
-
-# Terraform / GHA Infra
-releases.hashicorp.com
-registry.terraform.io
-github.com
-api.github.com
-*.actions.githubusercontent.com
-objects.githubusercontent.com
-pipelines.actions.githubusercontent.com
-
-# gcloud CLI (constraint pre-creation step)
-dl.google.com
-packages.cloud.google.com
