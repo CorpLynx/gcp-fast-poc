@@ -13,7 +13,7 @@ on:
         default: plan
 
 env:
-  TF_VERSION: "1.12.1"
+  TF_VERSION: "1.12.2"
   WORKING_DIR: "fast/stages/0-org-setup"
 
 jobs:
