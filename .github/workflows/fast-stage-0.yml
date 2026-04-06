@@ -29,9 +29,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_BOOTSTRAP_SA_KEY }}
+
+      - name: Create bootstrap provider config
         run: |
-          echo '${{ secrets.GCP_BOOTSTRAP_SA_KEY }}' > /tmp/gcp-key.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json" >> "$GITHUB_ENV"
+          cat > provider-bootstrap.tf <<'EOF'
+          provider "google" {}
+          provider "google-beta" {}
+          EOF
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -57,7 +64,3 @@ jobs:
           path: ~/fast-config/fast/
           if-no-files-found: warn
           retention-days: 7
-
-      - name: Cleanup credentials
-        if: always()
-        run: rm -f /tmp/gcp-key.json

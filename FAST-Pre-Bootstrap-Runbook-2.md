@@ -127,6 +127,8 @@ seed project so the bootstrap SA can make API calls during terraform apply.
 # cloudasset            — inventory org resources (used by FAST for validation)
 # accesscontextmanager  — VPC Service Controls perimeter management
 # storage               — GCS buckets for Terraform state and FAST outputs
+# essentialcontacts     — org-level essential contacts (failed without: google_essential_contacts_contact)
+# securitycentermanagement — SCC custom SHA modules (failed without: all google_scc_management_organization_security_health_analytics_custom_module resources)
 gcloud services enable \
   cloudresourcemanager.googleapis.com \
   cloudbilling.googleapis.com \
@@ -137,6 +139,8 @@ gcloud services enable \
   cloudasset.googleapis.com \
   accesscontextmanager.googleapis.com \
   storage.googleapis.com \
+  essentialcontacts.googleapis.com \
+  securitycentermanagement.googleapis.com \
   --project="$SEED_PROJECT"
 ```
 
