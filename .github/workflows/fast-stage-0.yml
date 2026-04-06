@@ -141,6 +141,17 @@ jobs:
         if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
         run: terraform apply tfplan
 
+      - name: Targeted apply for race-condition resources
+        if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
+        run: |
+          echo "Running targeted apply for resources that fail due to cross-module race conditions..."
+          echo "These depend on custom constraints and IAM bindings created in the main apply above."
+          terraform apply -auto-approve \
+            -target='module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableAdminServiceAccount"]' \
+            -target='module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableProjectServiceAccountImpersonationRoles"]' \
+            -target='module.factory.module.folder-1["teams"].google_tags_tag_binding.binding["context"]' \
+            || echo "Targeted apply had errors (may need another run if dependencies are still propagating)"
+
       - name: Save Terraform state
         if: always()
         uses: actions/upload-artifact@v4

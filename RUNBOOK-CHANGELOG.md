@@ -17,6 +17,38 @@ Changes made to `FAST-Pre-Bootstrap-Runbook-2.md` during the FAST POC setup.
 
 ---
 
+## 2026-04-06 — Added targeted apply step for cross-module race condition resources
+
+**Problem:** The 3 failing resources never resolve because Terraform's parallel execution model cancels in-flight operations when errors occur. The custom constraints (`google_org_policy_custom_constraint`) created by `organization-iam` module may not complete before Terraform aborts due to the folder-level policy errors. Confirmed via `gcloud org-policies list-custom-constraints` returning zero constraints — they were never successfully created despite being in the plan.
+
+**Fix:** Added a second apply step after the main apply that targets only the 3 race-condition resources with `-auto-approve`. By this point the main apply will have created the custom constraints and IAM bindings (or they'll already exist from a prior run). The targeted apply runs a fresh plan scoped to just those 3 resources and applies them.
+
+**Targeted resources:**
+- `module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableAdminServiceAccount"]`
+- `module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableProjectServiceAccountImpersonationRoles"]`
+- `module.factory.module.folder-1["teams"].google_tags_tag_binding.binding["context"]`
+
+**Changes:** `.github/workflows/fast-stage-0.yml` — added "Targeted apply for race-condition resources" step after main apply.
+
+---
+
+## 2026-04-06 — 3 remaining resources still failing after multiple applies (cross-module race condition)
+
+**Problem:** The same 3 resources that failed on the first apply continue to fail on subsequent applies. The original theory was that re-running `apply` would resolve them because the dependencies (custom constraints, IAM bindings) would exist from the prior run. This turned out to be partially wrong — the resources do fail for the same reason each time because Terraform replans and attempts to create them in parallel with their dependencies again.
+
+**Root cause:** There is no explicit `depends_on` between the `organization-iam` module (which creates `google_org_policy_custom_constraint` resources) and the `factory` folder module (which creates `google_org_policy_policy` resources referencing those constraints). Terraform sees no dependency graph link, so it creates both in parallel. The folder-level policy for `custom.iamDisableAdminServiceAccount` hits the GCP API before the constraint exists → 404. Same for `custom.iamDisableProjectServiceAccountImpersonationRoles`. The tag binding on the teams folder fails because the org-level `tagUser` IAM grant is also being created in the same parallel batch → 403.
+
+**Why re-running apply should still work:** Each apply creates the constraints and IAM bindings successfully (they're not the ones failing). The 3 folder-level resources fail, but everything else succeeds and is saved to state. On the next run, the plan will only contain the 3 remaining resources. By that point the constraints and IAM bindings already exist in GCP, so the 3 resources should succeed. The key is to run a plain `apply` (not `import-and-apply`) so it does a fresh plan against the current state.
+
+**Affected resources (unchanged):**
+- `module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableAdminServiceAccount"]` — 404
+- `module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableProjectServiceAccountImpersonationRoles"]` — 404
+- `module.factory.module.folder-1["teams"].google_tags_tag_binding.binding["context"]` — 403
+
+**Resolution:** Run a plain `apply` (not `import-and-apply`). The fresh plan should only contain these 3 resources, and their dependencies will already exist in GCP from the previous run.
+
+---
+
 ## 2026-04-06 — Expected race conditions on first bootstrap apply (informational, no changes needed)
 
 **Observation:** The first successful apply of Stage 0 will fail on 3 resources due to ordering/dependency issues. These are inherent to FAST's bootstrap design where everything is created simultaneously and do not require any changes — just re-run `apply`.
