@@ -215,6 +215,7 @@ folders, service accounts, org policies, logging sinks, and tags.
 #   tagAdmin                — create org-level tags (used for IAM conditions)
 #   policyAdmin (ACM)       — manage VPC Service Controls access policies
 #   organizationViewer      — read org metadata
+#   sccManagementAdmin      — create SCC SHA custom modules (failed without: all SCC custom modules got IAM_PERMISSION_DENIED)
 for role in \
   roles/resourcemanager.organizationAdmin \
   roles/resourcemanager.projectCreator \
@@ -228,7 +229,8 @@ for role in \
   roles/compute.xpnAdmin \
   roles/resourcemanager.tagAdmin \
   roles/accesscontextmanager.policyAdmin \
-  roles/resourcemanager.organizationViewer; do
+  roles/resourcemanager.organizationViewer \
+  roles/securitycentermanagement.admin; do
 
   # add-iam-policy-binding is additive — it won't remove existing bindings.
   # --quiet suppresses the confirmation prompt.
@@ -445,7 +447,8 @@ for role in \
   roles/compute.xpnAdmin \
   roles/resourcemanager.tagAdmin \
   roles/accesscontextmanager.policyAdmin \
-  roles/resourcemanager.organizationViewer; do
+  roles/resourcemanager.organizationViewer \
+  roles/securitycentermanagement.admin; do
   gcloud organizations remove-iam-policy-binding "$ORG_ID" \
     --member="serviceAccount:$BOOTSTRAP_SA_EMAIL" \
     --role="$role" --quiet 2>/dev/null || true

@@ -17,6 +17,17 @@ Changes made to `FAST-Pre-Bootstrap-Runbook-2.md` during the FAST POC setup.
 
 ---
 
+## 2026-04-06 — Added securitycentermanagement.admin role to Step 5
+
+**Problem:** Stage 0 apply failed with `IAM_PERMISSION_DENIED` on all 16 `google_scc_management_organization_security_health_analytics_custom_module` resources. The bootstrap SA needs `roles/securitycentermanagement.admin` at the org level to create SCC SHA custom modules.
+
+**Changes:**
+- Step 5: added `roles/securitycentermanagement.admin` to the org-level role grant loop
+- Step 5: added inline comment noting which resources fail without it
+- Cleanup section: added the same role to the removal loop
+
+---
+
 ## 2026-04-06 — Added missing APIs to Step 2 (essentialcontacts, securitycentermanagement)
 
 **Problem:** Stage 0 apply failed because `essentialcontacts.googleapis.com` and `securitycentermanagement.googleapis.com` were not enabled on the seed project. The bootstrap SA makes org-level API calls that route through the seed project's quota/billing, so these APIs must be enabled there.
