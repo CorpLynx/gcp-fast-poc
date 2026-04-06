@@ -55,6 +55,7 @@ jobs:
           path: ${{ env.WORKING_DIR }}
           search_artifacts: true
           if_no_artifact_found: warn
+          workflow_conclusion: ''
 
       - name: Terraform Init
         run: terraform init

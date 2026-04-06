@@ -17,6 +17,19 @@ Changes made to `FAST-Pre-Bootstrap-Runbook-2.md` during the FAST POC setup.
 
 ---
 
+## 2026-04-06 — Expected race conditions on first bootstrap apply (informational, no changes needed)
+
+**Observation:** The first successful apply of Stage 0 will fail on 3 resources due to ordering/dependency issues. These are inherent to FAST's bootstrap design where everything is created simultaneously and do not require any changes — just re-run `apply`.
+
+**Affected resources:**
+- `module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableAdminServiceAccount"]` — 404 because the custom constraint is created by `organization-iam` module in the same apply, but the folder policy tries to reference it before it exists
+- `module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableProjectServiceAccountImpersonationRoles"]` — same race condition
+- `module.factory.module.folder-1["teams"].google_tags_tag_binding.binding["context"]` — 403 because the org-level IAM bindings granting `roles/resourcemanager.tagUser` are also being created in the same apply, so the bootstrap SA doesn't have tag binding permission yet
+
+**Resolution:** Run `apply` again. The constraints and IAM bindings from the first run will already exist, so these 3 resources will succeed on the second pass.
+
+---
+
 ## 2026-04-06 — Fixed folder import script CSV parsing with spaces in display names
 
 **Problem:** The import script used CSV format with `%%,*` and `##*,` bash string splitting to parse folder names. "Data Platform" contains a space which caused the CSV parsing to fail silently — the folder was never imported, leading to repeated "display name uniqueness" errors on apply.
