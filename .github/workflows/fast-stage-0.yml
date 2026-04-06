@@ -126,6 +126,14 @@ jobs:
             "module.organization[0].google_logging_organization_settings.default[0]" \
             "organizations/$ORG_ID/settings" 2>/dev/null || echo "  (skipped or already in state)"
 
+          echo "Importing custom constraints..."
+          for constraint in custom.iamDisableAdminServiceAccount custom.iamDisableProjectServiceAccountImpersonationRoles; do
+            echo "  Importing $constraint..."
+            terraform import \
+              "module.organization-iam[0].google_org_policy_custom_constraint.constraint[\"$constraint\"]" \
+              "organizations/$ORG_ID/customConstraints/$constraint" 2>/dev/null || echo "  (skipped or already in state)"
+          done
+
           echo "Importing essential contacts..."
           terraform import \
             "module.organization[0].google_essential_contacts_contact.contact[\"\$email_addresses:gcp-organization-admins\"]" \

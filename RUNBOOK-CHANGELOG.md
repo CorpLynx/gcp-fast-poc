@@ -17,6 +17,18 @@ Changes made to `FAST-Pre-Bootstrap-Runbook-2.md` during the FAST POC setup.
 
 ---
 
+## 2026-04-06 — Manually created custom constraints and tagUser role via Cloud Shell
+
+**Problem:** The two custom org policy constraints (`custom.iamDisableAdminServiceAccount`, `custom.iamDisableProjectServiceAccountImpersonationRoles`) were never being created by Terraform. The `organization-iam` module that creates them depends on `factory` module outputs, and the `factory` module's folder policies reference the constraints — creating a circular dependency that Terraform resolves by running them in parallel. The constraints never win the race. Additionally, the bootstrap SA lacked `roles/resourcemanager.tagUser` needed for folder tag bindings.
+
+**Fix:** Created both constraints manually via `gcloud org-policies set-custom-constraint` and granted `roles/resourcemanager.tagUser` to the bootstrap SA. Added constraint imports to the workflow's `import-and-apply` action so they get imported into state.
+
+**Changes:**
+- `.github/workflows/fast-stage-0.yml` — added import of both custom constraints in the import step
+- `FAST-Pre-Bootstrap-Runbook-2.md` — added `roles/resourcemanager.tagUser` to Step 5 and Cleanup section
+
+---
+
 ## 2026-04-06 — Added targeted apply step for cross-module race condition resources
 
 **Problem:** The 3 failing resources never resolve because Terraform's parallel execution model cancels in-flight operations when errors occur. The custom constraints (`google_org_policy_custom_constraint`) created by `organization-iam` module may not complete before Terraform aborts due to the folder-level policy errors. Confirmed via `gcloud org-policies list-custom-constraints` returning zero constraints — they were never successfully created despite being in the plan.

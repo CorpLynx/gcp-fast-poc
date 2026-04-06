@@ -232,6 +232,7 @@ folders, service accounts, org policies, logging sinks, and tags.
 #   networkAdmin            — manage shared VPC host project designation
 #   xpnAdmin                — manage cross-project networking (Shared VPC)
 #   tagAdmin                — create org-level tags (used for IAM conditions)
+#   tagUser                 — bind tags to folders (failed without: google_tags_tag_binding on teams folder got 403)
 #   policyAdmin (ACM)       — manage VPC Service Controls access policies
 #   organizationViewer      — read org metadata
 #   sccManagementAdmin      — create SCC SHA custom modules (failed without: all SCC custom modules got IAM_PERMISSION_DENIED)
@@ -247,6 +248,7 @@ for role in \
   roles/compute.networkAdmin \
   roles/compute.xpnAdmin \
   roles/resourcemanager.tagAdmin \
+  roles/resourcemanager.tagUser \
   roles/accesscontextmanager.policyAdmin \
   roles/resourcemanager.organizationViewer \
   roles/securitycentermanagement.admin; do
@@ -465,6 +467,7 @@ for role in \
   roles/compute.networkAdmin \
   roles/compute.xpnAdmin \
   roles/resourcemanager.tagAdmin \
+  roles/resourcemanager.tagUser \
   roles/accesscontextmanager.policyAdmin \
   roles/resourcemanager.organizationViewer \
   roles/securitycentermanagement.admin; do
