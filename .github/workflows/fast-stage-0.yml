@@ -152,24 +152,7 @@ jobs:
 
       - name: Terraform Apply
         if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
-        run: terraform apply tfplan || echo "::warning::Main apply had errors — targeted apply will retry race-condition resources"
-
-      - name: Targeted apply for race-condition resources
-        if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
-        run: |
-          echo "Phase 1: Creating custom constraints and org IAM bindings first..."
-          terraform apply -auto-approve \
-            -target='module.organization-iam[0].google_org_policy_custom_constraint.constraint' \
-            -target='module.organization-iam[0].google_organization_iam_member.bindings' \
-            || echo "::warning::Phase 1 targeted apply had errors"
-
-          echo ""
-          echo "Phase 2: Applying folder policies and tag bindings that depend on phase 1..."
-          terraform apply -auto-approve \
-            -target='module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableAdminServiceAccount"]' \
-            -target='module.factory.module.folder-1["data-platform"].google_org_policy_policy.default["custom.iamDisableProjectServiceAccountImpersonationRoles"]' \
-            -target='module.factory.module.folder-1["teams"].google_tags_tag_binding.binding["context"]' \
-            || echo "::warning::Phase 2 targeted apply had errors"
+        run: terraform apply tfplan
 
       - name: Save Terraform state
         if: always()
