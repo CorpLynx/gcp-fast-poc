@@ -228,6 +228,12 @@ jobs:
           done
 
           echo "=== Import complete ==="
+          
+          echo "=== Untainting any tainted projects ==="
+          for TF_KEY in iac-0 billing-0 log-0; do
+            terraform untaint "module.factory.module.projects[\"$TF_KEY\"].google_project.project[0]" 2>/dev/null || true
+          done
+
           set -e
 
       # ---------------------------------------------------------------
