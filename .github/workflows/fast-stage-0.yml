@@ -68,7 +68,7 @@ jobs:
       # been created yet by the organization-iam module.
       # ---------------------------------------------------------------
       - name: Pre-create custom constraints
-        if: inputs.action == 'apply' || inputs.action == 'import-and-apply'
+        if: inputs.action == 'import-and-apply'
         run: |
           echo "Pre-creating all custom org policy constraints..."
           CONSTRAINTS_DIR="datasets/hardened/organization/custom-constraints"
