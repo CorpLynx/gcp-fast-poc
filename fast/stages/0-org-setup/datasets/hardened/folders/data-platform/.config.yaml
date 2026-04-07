@@ -16,9 +16,9 @@
 
 name: Data Platform
 org_policies:
-  custom.iamDisableAdminServiceAccount:
+  custom.iamDisableAdminServiceAccountV2:
     rules:
       - enforce: false
-  custom.iamDisableProjectServiceAccountImpersonationRoles:
+  custom.iamDisableProjectServiceAccountImpersonationRolesV2:
     rules:
       - enforce: false
