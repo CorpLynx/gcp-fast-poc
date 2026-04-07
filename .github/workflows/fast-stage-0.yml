@@ -221,12 +221,10 @@ jobs:
           PROJECT_MAP["${PREFIX}-prod-audit-logs-0"]="log-0"
           for PROJ_ID in "${!PROJECT_MAP[@]}"; do
             TF_KEY="${PROJECT_MAP[$PROJ_ID]}"
-            if gcloud projects describe "$PROJ_ID" --format="value(lifecycleState)" 2>/dev/null | grep -q ACTIVE; then
-              echo "  $PROJ_ID as $TF_KEY..."
-              terraform import \
-                "module.factory.module.projects[\"$TF_KEY\"].google_project.project[0]" \
-                "$PROJ_ID" 2>/dev/null || echo "  (skip)"
-            fi
+            echo "  Trying $PROJ_ID as $TF_KEY..."
+            terraform import \
+              "module.factory.module.projects[\"$TF_KEY\"].google_project.project[0]" \
+              "$PROJ_ID" || echo "  (skip - import failed for $PROJ_ID)"
           done
 
           echo "=== Import complete ==="
